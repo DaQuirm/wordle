@@ -32,9 +32,9 @@ renderMatches wordleWord matches = do
             case find (\(_, guessLetterIndex, _) -> guessLetterIndex == letterIndex) matches of
               Nothing                   -> (Dull, White)
               Just (a, b, _) | a == b   -> (Vivid, Green)
-                            | otherwise -> (Vivid, Yellow)
+                             | otherwise -> (Vivid, Yellow)
       setSGR [SetColor Foreground intensity color]
-      putStr [toEnum (ord letter + 127247), ' ']
+      putStr [toEnum (ord letter - ord 'a' + ord '🅰'), ' ']
     )
     (zip [0..] wordleWord)
   setSGR [SetColor Foreground Dull White]
