@@ -5,7 +5,10 @@ module Main where
 import Data.Char (isLower, ord)
 import Data.List (nub, (!?), sortOn, nubBy, find, (\\), intersperse)
 import System.Random (getStdRandom, Random(randomR))
-import System.Console.ANSI (setSGR, SGR (..), ConsoleLayer (..), ColorIntensity (..), Color (..))
+import System.IO qualified as IO
+import System.Console.ANSI qualified as Console
+import Control.Monad (forever)
+import qualified Data.IORef as IORef
 
 
 letterMatches :: String -> (Int, Char) -> [(Int, Int, Char)]
@@ -30,14 +33,14 @@ renderMatches wordleWord matches = do
     (\(letterIndex, letter) -> do
       let (intensity, color) =
             case find (\(_, guessLetterIndex, _) -> guessLetterIndex == letterIndex) matches of
-              Nothing                    -> (Dull, White)
-              Just (a, b, _) | a == b    -> (Vivid, Green)
-                             | otherwise -> (Vivid, Yellow)
-      setSGR [SetColor Foreground intensity color]
+              Nothing                    -> (Console.Dull, Console.White)
+              Just (a, b, _) | a == b    -> (Console.Vivid, Console.Green)
+                             | otherwise -> (Console.Vivid, Console.Yellow)
+      Console.setSGR [Console.SetColor Console.Foreground intensity color]
       putStr [toEnum (ord letter - ord 'a' + ord '🅰'), ' ']
     )
     (zip [0..] wordleWord)
-  setSGR [SetColor Foreground Dull White]
+  Console.setSGR [Console.SetColor Console.Foreground Console.Dull Console.White]
   putStrLn "" -- for cross-platform newline
 
 data Env =
@@ -68,12 +71,51 @@ guessingLogic env attemptsLeft attempts =
         putStrLn $ guess <> " is not a word!"
         guessingLogic env attemptsLeft attempts
 
+getKey :: IO String
+getKey = reverse <$> getKey' ""
+  where
+    getKey' chars = do
+      char <- getChar
+      more <- IO.hReady IO.stdin
+      (if more then getKey' else return) (char : chars)
+
+data AppState = AppState
+  { guess :: String
+  }
+
+emptyState :: AppState
+emptyState = AppState { guess = "" }
+
+updateState :: String -> AppState -> AppState
+updateState input appState | length appState.guess == 5 = appState
+                           | otherwise                  = appState { guess = appState.guess <> input }
+
+renderState :: AppState -> String
+renderState appState =
+  concatMap (\letter -> [toEnum (ord letter - ord 'a' + ord '🅰'), ' ']) appState.guess
+
+
 main :: IO ()
 main = do
-  alice <- readFile "words.txt"
-  let wordleWords = nub $ filter (\s -> length s == 5 && all isLower s) (words alice)
-  wordIndex <- getStdRandom $ randomR (0, length wordleWords)
+  IO.hSetBuffering IO.stdin IO.NoBuffering
+  IO.hSetEcho IO.stdin False
 
-  case wordleWords !? wordIndex of
-    Nothing -> putStrLn "The impossible happened!"
-    Just wordleWord -> guessingLogic (Env { wordleWords, wordleWord }) 5 []
+  stateRef <- IORef.newIORef emptyState
+
+  forever $ do
+    Console.setCursorPosition 0 0
+    Console.clearScreen
+
+    appState <- IORef.readIORef stateRef
+    putStrLn $ renderState appState
+
+    input <- getKey
+    IORef.writeIORef stateRef $ updateState input appState
+
+  -- alice <- readFile "words.txt"
+  -- let wordleWords = nub $ filter (\s -> length s == 5 && all isLower s) (words alice)
+  -- wordIndex <- getStdRandom $ randomR (0, length wordleWords)
+
+  -- case wordleWords !? wordIndex of
+  --   Nothing -> putStrLn "The impossible happened!"
+  --   Just wordleWord -> guessingLogic (Env { wordleWords, wordleWord }) 5 []
