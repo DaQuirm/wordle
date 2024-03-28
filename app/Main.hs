@@ -1,15 +1,11 @@
-{-#LANGUAGE OverloadedRecordDot #-}
-
 module Main where
 
-import Data.Char (isLower, ord)
-import Data.List (nub, (!?), sortOn, nubBy, find, (\\), intersperse)
-import System.Random (getStdRandom, Random(randomR))
-import System.IO qualified as IO
+import Data.Char (ord)
+import Data.List (sortOn, nubBy, find, (\\), intersperse)
 import System.Console.ANSI qualified as Console
-import Control.Monad (forever)
-import qualified Data.IORef as IORef
-
+import Otter.Framework (OtterEnv(..))
+import Otter.Framework qualified as Otter
+import App qualified
 
 letterMatches :: String -> (Int, Char) -> [(Int, Int, Char)]
 letterMatches word (letterIndex, letter) =
@@ -71,46 +67,14 @@ guessingLogic env attemptsLeft attempts =
         putStrLn $ guess <> " is not a word!"
         guessingLogic env attemptsLeft attempts
 
-getKey :: IO String
-getKey = reverse <$> getKey' ""
-  where
-    getKey' chars = do
-      char <- getChar
-      more <- IO.hReady IO.stdin
-      (if more then getKey' else return) (char : chars)
-
-data AppState = AppState
-  { guess :: String
-  }
-
-emptyState :: AppState
-emptyState = AppState { guess = "" }
-
-updateState :: String -> AppState -> AppState
-updateState input appState | length appState.guess == 5 = appState
-                           | otherwise                  = appState { guess = appState.guess <> input }
-
-renderState :: AppState -> String
-renderState appState =
-  concatMap (\letter -> [toEnum (ord letter - ord 'a' + ord '🅰'), ' ']) appState.guess
-
-
 main :: IO ()
 main = do
-  IO.hSetBuffering IO.stdin IO.NoBuffering
-  IO.hSetEcho IO.stdin False
-
-  stateRef <- IORef.newIORef emptyState
-
-  forever $ do
-    Console.setCursorPosition 0 0
-    Console.clearScreen
-
-    appState <- IORef.readIORef stateRef
-    putStrLn $ renderState appState
-
-    input <- getKey
-    IORef.writeIORef stateRef $ updateState input appState
+  Otter.run $
+    Otter.OtterEnv
+      { initialState = App.initialState
+      , update       = App.updateState
+      , render       = App.renderState
+      }
 
   -- alice <- readFile "words.txt"
   -- let wordleWords = nub $ filter (\s -> length s == 5 && all isLower s) (words alice)
