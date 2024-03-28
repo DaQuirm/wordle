@@ -1,12 +1,11 @@
-{-#LANGUAGE OverloadedRecordDot #-}
-
 module Main where
 
-import Data.Char (isLower, ord)
-import Data.List (nub, (!?), sortOn, nubBy, find, (\\), intersperse)
-import System.Random (getStdRandom, Random(randomR))
-import System.Console.ANSI (setSGR, SGR (..), ConsoleLayer (..), ColorIntensity (..), Color (..))
-
+import Data.Char (ord)
+import Data.List (sortOn, nubBy, find, (\\), intersperse)
+import System.Console.ANSI qualified as Console
+import Otter.Framework (OtterEnv(..))
+import Otter.Framework qualified as Otter
+import App qualified
 
 letterMatches :: String -> (Int, Char) -> [(Int, Int, Char)]
 letterMatches word (letterIndex, letter) =
@@ -30,14 +29,14 @@ renderMatches wordleWord matches = do
     (\(letterIndex, letter) -> do
       let (intensity, color) =
             case find (\(_, guessLetterIndex, _) -> guessLetterIndex == letterIndex) matches of
-              Nothing                    -> (Dull, White)
-              Just (a, b, _) | a == b    -> (Vivid, Green)
-                             | otherwise -> (Vivid, Yellow)
-      setSGR [SetColor Foreground intensity color]
+              Nothing                    -> (Console.Dull, Console.White)
+              Just (a, b, _) | a == b    -> (Console.Vivid, Console.Green)
+                             | otherwise -> (Console.Vivid, Console.Yellow)
+      Console.setSGR [Console.SetColor Console.Foreground intensity color]
       putStr [toEnum (ord letter - ord 'a' + ord '🅰'), ' ']
     )
     (zip [0..] wordleWord)
-  setSGR [SetColor Foreground Dull White]
+  Console.setSGR [Console.SetColor Console.Foreground Console.Dull Console.White]
   putStrLn "" -- for cross-platform newline
 
 data Env =
@@ -70,10 +69,17 @@ guessingLogic env attemptsLeft attempts =
 
 main :: IO ()
 main = do
-  alice <- readFile "words.txt"
-  let wordleWords = nub $ filter (\s -> length s == 5 && all isLower s) (words alice)
-  wordIndex <- getStdRandom $ randomR (0, length wordleWords)
+  Otter.run $
+    Otter.OtterEnv
+      { initialState = App.initialState
+      , update       = App.updateState
+      , render       = App.renderState
+      }
 
-  case wordleWords !? wordIndex of
-    Nothing -> putStrLn "The impossible happened!"
-    Just wordleWord -> guessingLogic (Env { wordleWords, wordleWord }) 5 []
+  -- alice <- readFile "words.txt"
+  -- let wordleWords = nub $ filter (\s -> length s == 5 && all isLower s) (words alice)
+  -- wordIndex <- getStdRandom $ randomR (0, length wordleWords)
+
+  -- case wordleWords !? wordIndex of
+  --   Nothing -> putStrLn "The impossible happened!"
+  --   Just wordleWord -> guessingLogic (Env { wordleWords, wordleWord }) 5 []
