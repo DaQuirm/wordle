@@ -17,21 +17,21 @@ data OtterEnv state = OtterEnv
   }
 
 run :: OtterEnv state -> IO ()
-run (OtterEnv { initialState, update, render }) = do
+run env = do
   IO.hSetBuffering IO.stdin IO.NoBuffering
   IO.hSetEcho IO.stdin False
 
-  stateRef <- IORef.newIORef initialState
+  stateRef <- IORef.newIORef env.initialState
 
   forever $ do
     Console.setCursorPosition 0 0
     Console.clearScreen
 
     appState <- IORef.readIORef stateRef
-    putStrLn $ render appState
+    putStrLn $ env.render appState
 
     input <- getKey
 
     let keyCodes = map ord input
 
-    IORef.writeIORef stateRef $ update keyCodes appState
+    IORef.writeIORef stateRef $ env.update keyCodes appState
